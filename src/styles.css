@@ -54,9 +54,17 @@ body {
   position: relative;
   display: flex;
   justify-content: center;
-  align-items: center;
+  /* Keep the reader anchored so expanding content grows downward (no re-centering). */
+  align-items: flex-start;
   min-height: calc(100vh - 160px);
   padding: 8px 0 24px;
+}
+
+.reader-stage {
+  position: relative;
+  width: min(980px, 100%);
+  /* Approximate the previous centered placement without tying it to element height. */
+  margin-top: clamp(12px, 10vh, 120px);
 }
 
 @media (max-width: 800px) {
@@ -64,11 +72,10 @@ body {
     min-height: calc(100vh - 140px);
     padding-top: 56px;
   }
-}
 
-.reader-stage {
-  position: relative;
-  width: min(980px, 100%);
+  .reader-stage {
+    margin-top: 0;
+  }
 }
 
 .reader-card {
@@ -380,7 +387,30 @@ button {
   color: #7f82a4;
 }
 
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 84px 16px 24px;
+}
+
+.settings-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.58);
+}
+
 .settings-panel {
+  position: relative;
+  z-index: 1;
+  width: min(980px, 100%);
+  max-height: calc(100vh - 120px);
+  overflow: auto;
   animation: slideDown 0.2s ease-out;
 }
 

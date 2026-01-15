@@ -2340,102 +2340,108 @@ const App: React.FC = () => {
       </header>
 
       {showSettings && (
-        <section className="card settings-panel" style={{ marginBottom: "20px" }}>
-          <div className="card-header">
-            <div className="card-title">Settings</div>
-            <button
-              className="btn btn-ghost btn-icon"
-              type="button"
-              onClick={() => setShowSettings(false)}
-            >
-              ✕
-            </button>
-          </div>
+        <div className="settings-overlay" role="dialog" aria-modal="true">
+          <button
+            className="settings-backdrop"
+            type="button"
+            aria-label="Close settings"
+            onClick={() => setShowSettings(false)}
+          />
+          <section className="card settings-panel">
+            <div className="card-header">
+              <div className="card-title">Settings</div>
+              <button
+                className="btn btn-ghost btn-icon"
+                type="button"
+                onClick={() => setShowSettings(false)}
+              >
+                ✕
+              </button>
+            </div>
 
-          <div className="settings-content">
-            <div className="setting-group">
-              <label className="setting-label">Font Family</label>
-              <div className="font-grid">
-                {fontOptions.map((font) => (
+            <div className="settings-content">
+              <div className="setting-group">
+                <label className="setting-label">Font Family</label>
+                <div className="font-grid">
+                  {fontOptions.map((font) => (
+                    <button
+                      key={font.value}
+                      type="button"
+                      className={`font-option ${fontFamily === font.value ? "active" : ""}`}
+                      onClick={() => setFontFamily(font.value)}
+                    >
+                      <div className="font-preview" style={{ fontFamily: font.value }}>
+                        {font.label}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="setting-group">
+                <label className="setting-label">Letter Spacing: {letterSpacing}</label>
+                <div className="setting-slider-group">
+                  <input
+                    className="slider range-input"
+                    type="range"
+                    min={0}
+                    max={10}
+                    step={1}
+                    value={letterSpacing}
+                    onChange={(e) => setLetterSpacing(Number(e.target.value))}
+                  />
                   <button
-                    key={font.value}
+                    className="btn btn-ghost"
                     type="button"
-                    className={`font-option ${fontFamily === font.value ? "active" : ""}`}
-                    onClick={() => setFontFamily(font.value)}
+                    onClick={() => setLetterSpacing(5)}
+                    style={{ fontSize: "0.8rem", padding: "4px 8px" }}
                   >
-                    <div className="font-preview" style={{ fontFamily: font.value }}>
-                      {font.label}
-                    </div>
+                    Reset
                   </button>
-                ))}
+                </div>
+              </div>
+
+              <div className="setting-group">
+                <label className="setting-label">Pivot Letter Color</label>
+                <div className="setting-color-group">
+                  <input
+                    className="setting-color-input"
+                    type="color"
+                    value={pivotColor}
+                    onChange={(e) => setPivotColor(e.target.value)}
+                  />
+                  <input
+                    className="setting-color-text"
+                    type="text"
+                    value={pivotColor}
+                    onChange={(e) => setPivotColor(e.target.value)}
+                    placeholder="#ff4e4e"
+                  />
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => setPivotColor("#ff4e4e")}
+                    style={{ fontSize: "0.8rem", padding: "4px 8px" }}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              <div className="setting-group">
+                <label className="setting-label">Pause at paragraph end</label>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={pauseAtParagraphEnd}
+                    onChange={(e) => setPauseAtParagraphEnd(e.target.checked)}
+                  />
+                  <span className="toggle-text">Stop after each paragraph.</span>
+                </label>
               </div>
             </div>
-
-            <div className="setting-group">
-              <label className="setting-label">
-                Letter Spacing: {letterSpacing}
-              </label>
-              <div className="setting-slider-group">
-                <input
-                  className="slider range-input"
-                  type="range"
-                  min={0}
-                  max={10}
-                  step={1}
-                  value={letterSpacing}
-                  onChange={(e) => setLetterSpacing(Number(e.target.value))}
-                />
-                <button
-                  className="btn btn-ghost"
-                  type="button"
-                  onClick={() => setLetterSpacing(5)}
-                  style={{ fontSize: "0.8rem", padding: "4px 8px" }}
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-
-            <div className="setting-group">
-              <label className="setting-label">Pivot Letter Color</label>
-              <div className="setting-color-group">
-                <input
-                  className="setting-color-input"
-                  type="color"
-                  value={pivotColor}
-                  onChange={(e) => setPivotColor(e.target.value)}
-                />
-                <input
-                  className="setting-color-text"
-                  type="text"
-                  value={pivotColor}
-                  onChange={(e) => setPivotColor(e.target.value)}
-                  placeholder="#ff4e4e"
-                />
-                <button
-                  className="btn btn-ghost"
-                  type="button"
-                  onClick={() => setPivotColor("#ff4e4e")}
-                  style={{ fontSize: "0.8rem", padding: "4px 8px" }}
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-
-            <div className="setting-group">
-              <label className="setting-label">Pause at paragraph end</label>
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={pauseAtParagraphEnd}
-                  onChange={(e) => setPauseAtParagraphEnd(e.target.checked)}
-                />
-                <span className="toggle-text">Stop after each paragraph.</span>
-              </label>
-            </div>
-          </div>
-        </section>
+          </section>
+        </div>
       )}
 
       <main className="layout">
