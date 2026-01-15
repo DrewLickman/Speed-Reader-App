@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "build": "node ./node_modules/vite/bin/vite.js build",
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
