@@ -620,7 +620,7 @@ const App: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showParagraph, setShowParagraph] = useState(false);
-  const [pauseAtParagraphEnd, setPauseAtParagraphEnd] = useState(false);
+  const [autoContinueParagraphs, setAutoContinueParagraphs] = useState(true);
   const [hasLoadedContent, setHasLoadedContent] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
@@ -649,6 +649,47 @@ const App: React.FC = () => {
     { value: "'Roboto', sans-serif", label: "Roboto", example: "The quick brown" },
     { value: "'Open Sans', sans-serif", label: "Open Sans", example: "The quick brown" },
   ];
+
+  const fontGridRef = useRef<HTMLDivElement | null>(null);
+  const [fontGridCols, setFontGridCols] = useState<number>(5);
+
+  const computeFontGridCols = (containerWidth: number, itemCount: number): number => {
+    // For Font Family specifically, we only want:
+    // - 5 columns (5x2) on wider widths
+    // - 2 columns (2x5) on narrower widths
+    // (given the current 10 options)
+    const gapPx = 10; // keep in sync with `.font-grid { gap }`
+    const minTilePxFor5 = 96; // labels can wrap; keep tiles reasonably sized
+    const widthFor5Cols = 5 * minTilePxFor5 + 4 * gapPx;
+
+    if (itemCount % 5 === 0 && containerWidth >= widthFor5Cols) return 5;
+    if (itemCount % 2 === 0) return 2;
+
+    // Fallback for unexpected item counts.
+    return Math.min(itemCount, 5);
+  };
+
+  useEffect(() => {
+    if (!showSettings) return;
+    const el = fontGridRef.current;
+    if (!el) return;
+    const itemCount = fontOptions.length;
+
+    const update = () => {
+      const nextCols = computeFontGridCols(el.clientWidth, itemCount);
+      setFontGridCols((prev) => (prev === nextCols ? prev : nextCols));
+    };
+
+    const rafId = window.requestAnimationFrame(() => update());
+
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      ro.disconnect();
+    };
+  }, [showSettings, fontOptions.length]);
 
   const timerRef = useRef<number | null>(null);
   const lastTickRef = useRef<number | null>(null);
@@ -903,7 +944,7 @@ const App: React.FC = () => {
         }
         const advance = getReaderFrameAtIndex(prev).advance;
 
-        if (pauseAtParagraphEnd && parsedParagraphs.length) {
+        if (!autoContinueParagraphs && parsedParagraphs.length) {
           const pos = findParagraphForWord(parsedParagraphs, prev);
           const start = paragraphStartOffsets[pos.paragraphIndex] ?? 0;
           const end = start + parsedParagraphs[pos.paragraphIndex].words.length - 1;
@@ -932,7 +973,7 @@ const App: React.FC = () => {
     parsedParagraphs,
     speakerNames,
     words,
-    pauseAtParagraphEnd,
+    autoContinueParagraphs,
     paragraphStartOffsets
   ]);
 
@@ -1127,7 +1168,7 @@ const App: React.FC = () => {
     if (!hasContent) return;
     // If we are paused at the end of a paragraph, advance once before resuming so we don't
     // immediately pause again on the same last word.
-    if (!isPlaying && pauseAtParagraphEnd && parsedParagraphs.length) {
+    if (!isPlaying && !autoContinueParagraphs && parsedParagraphs.length) {
       const pos = findParagraphForWord(parsedParagraphs, currentIndex);
       const start = paragraphStartOffsets[pos.paragraphIndex] ?? 0;
       const end = start + parsedParagraphs[pos.paragraphIndex].words.length - 1;
@@ -2362,7 +2403,15 @@ const App: React.FC = () => {
             <div className="settings-content">
               <div className="setting-group">
                 <label className="setting-label">Font Family</label>
-                <div className="font-grid">
+                <div
+                  className="font-grid"
+                  ref={fontGridRef}
+                  style={{
+                    ["--font-cols" as never]: fontGridCols,
+                    ["--font-preview-size" as never]:
+                      fontGridCols >= 5 ? "0.9rem" : fontGridCols >= 4 ? "0.98rem" : "1.05rem"
+                  } as React.CSSProperties}
+                >
                   {fontOptions.map((font) => (
                     <button
                       key={font.value}
@@ -2378,66 +2427,62 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="setting-group">
-                <label className="setting-label">Letter Spacing: {letterSpacing}</label>
-                <div className="setting-slider-group">
-                  <input
-                    className="slider range-input"
-                    type="range"
-                    min={0}
-                    max={10}
-                    step={1}
-                    value={letterSpacing}
-                    onChange={(e) => setLetterSpacing(Number(e.target.value))}
-                  />
-                  <button
-                    className="btn btn-ghost"
-                    type="button"
-                    onClick={() => setLetterSpacing(5)}
-                    style={{ fontSize: "0.8rem", padding: "4px 8px" }}
-                  >
-                    Reset
-                  </button>
+              <div className="settings-controls-grid">
+                <div className="setting-group settings-spacing">
+                  <label className="setting-label">Letter Spacing: {letterSpacing}</label>
+                  <div className="setting-slider-group">
+                    <input
+                      className="slider range-input"
+                      type="range"
+                      min={0}
+                      max={10}
+                      step={1}
+                      value={letterSpacing}
+                      onChange={(e) => setLetterSpacing(Number(e.target.value))}
+                    />
+                    <button
+                      className="btn btn-ghost"
+                      type="button"
+                      onClick={() => setLetterSpacing(5)}
+                      style={{ fontSize: "0.8rem", padding: "4px 8px" }}
+                    >
+                      Reset
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="setting-group">
-                <label className="setting-label">Pivot Letter Color</label>
-                <div className="setting-color-group">
-                  <input
-                    className="setting-color-input"
-                    type="color"
-                    value={pivotColor}
-                    onChange={(e) => setPivotColor(e.target.value)}
-                  />
-                  <input
-                    className="setting-color-text"
-                    type="text"
-                    value={pivotColor}
-                    onChange={(e) => setPivotColor(e.target.value)}
-                    placeholder="#ff4e4e"
-                  />
-                  <button
-                    className="btn btn-ghost"
-                    type="button"
-                    onClick={() => setPivotColor("#ff4e4e")}
-                    style={{ fontSize: "0.8rem", padding: "4px 8px" }}
-                  >
-                    Reset
-                  </button>
+                <div className="setting-group settings-pivot">
+                  <label className="setting-label">Pivot Letter Color</label>
+                  <div className="setting-color-group">
+                    <input
+                      className="setting-color-input"
+                      type="color"
+                      value={pivotColor}
+                      onChange={(e) => setPivotColor(e.target.value)}
+                      aria-label="Pivot letter color"
+                    />
+                    <button
+                      className="btn btn-ghost"
+                      type="button"
+                      onClick={() => setPivotColor("#ff4e4e")}
+                      style={{ fontSize: "0.8rem", padding: "4px 8px" }}
+                    >
+                      Reset
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="setting-group">
-                <label className="setting-label">Pause at paragraph end</label>
-                <label className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={pauseAtParagraphEnd}
-                    onChange={(e) => setPauseAtParagraphEnd(e.target.checked)}
-                  />
-                  <span className="toggle-text">Stop after each paragraph.</span>
-                </label>
+                <div className="setting-group settings-pause">
+                  <label className="setting-label">Auto continue paragraphs</label>
+                  <label className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={autoContinueParagraphs}
+                      onChange={(e) => setAutoContinueParagraphs(e.target.checked)}
+                    />
+                    <span className="toggle-text">Go to next paragraph automatically.</span>
+                  </label>
+                </div>
               </div>
             </div>
           </section>
