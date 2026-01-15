@@ -2388,7 +2388,17 @@ const App: React.FC = () => {
             aria-label="Close settings"
             onClick={() => setShowSettings(false)}
           />
-          <section className="card settings-panel">
+          <section
+            className="card settings-panel"
+            style={
+              {
+                ["--settings-controls-columns" as never]:
+                  fontGridCols <= 2
+                    ? "minmax(0, 1fr) minmax(0, 1fr)"
+                    : "fit-content(360px) fit-content(520px)"
+              } as React.CSSProperties
+            }
+          >
             <div className="card-header">
               <div className="card-title">Settings</div>
               <button

@@ -413,6 +413,7 @@ button {
   width: min(980px, 100%);
   /* Keep the settings menu usable at mid widths, without overflowing on small screens. */
   min-width: clamp(340px, 52vw, 640px);
+  --settings-controls-columns: fit-content(360px) fit-content(520px);
   max-height: calc(100vh - 120px);
   overflow: auto;
   animation: slideDown 0.2s ease-out;
@@ -503,7 +504,7 @@ button {
 .settings-controls-grid {
   display: grid;
   /* Keep Pivot + Pause adjacent (no reserved empty column). */
-  grid-template-columns: fit-content(360px) fit-content(520px);
+  grid-template-columns: var(--settings-controls-columns);
   grid-template-areas:
     "spacing spacing"
     "pivot pause";
@@ -526,11 +527,8 @@ button {
 
 /* If extremely narrow, keep controls usable (still inline, but columns can shrink). */
 @media (max-width: 520px) {
-  .settings-controls-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "spacing spacing"
-      "pivot pause";
+  .settings-panel {
+    --settings-controls-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
