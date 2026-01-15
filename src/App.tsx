@@ -23,7 +23,14 @@ function normalizeLineEndings(raw: string): string {
   return raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
-const DEBUG_TEXT_PARSE = true;
+const DEBUG = false;
+const DEBUG_TEXT_PARSE = false;
+
+function debugLog(...args: unknown[]): void {
+  if (!DEBUG) return;
+  // eslint-disable-next-line no-console
+  console.log(...args);
+}
 
 function normalizeForParsing(raw: string): string {
   // Make copy/paste + cross-site punctuation more consistent.
@@ -72,7 +79,7 @@ function splitTranscriptIntoSpeakerParagraphs(text: string): string[] {
   >;
 
   if (DEBUG_TEXT_PARSE) {
-    console.log("[Text Parse] splitTranscriptIntoSpeakerParagraphs", {
+    debugLog("[Text Parse] splitTranscriptIntoSpeakerParagraphs", {
       textLength: cleaned.length,
       markerCount: matches.length,
       markerSample: matches.slice(0, 5).map((m) => ({ at: m.index, marker: (m[0] || "").trim() }))
@@ -198,7 +205,7 @@ function mergeTranscriptParagraphsFromPlainParas(paras: string[]): string[] {
   }
 
   if (DEBUG_TEXT_PARSE) {
-    console.log("[Text Parse] mergeTranscriptParagraphsFromPlainParas", {
+    debugLog("[Text Parse] mergeTranscriptParagraphsFromPlainParas", {
       before: paras.length,
       after: merged.length,
       noTimestampHeaderCount,
@@ -220,7 +227,7 @@ function findPivotIndex(word: string): number {
 }
 
 function findPivotIndexIgnoringSpaces(text: string): number {
-  // For multi-word frames (e.g., "Kathy Hochul"), choose pivot by counting letters
+  // For multi-word frames (e.g., "Jane Doe"), choose pivot by counting letters
   // excluding spaces, then map back to the original string index so we can render
   // the pivot character in-place.
   if (!text) return 0;
@@ -258,7 +265,7 @@ function normalizeText(raw: string): ParsedParagraph[] {
   const hasTranscriptFormat = transcriptMarkerMatches.length > 0 || speakerOnlyMatches.length >= 3;
 
   if (DEBUG_TEXT_PARSE) {
-    console.log("[Text Parse] normalizeText", {
+    debugLog("[Text Parse] normalizeText", {
       textLength: cleaned.length,
       transcriptMarkerCount: transcriptMarkerMatches.length,
       transcriptMarkerSample: transcriptMarkerMatches.slice(0, 5).map((m) => (m[0] || "").trim()),
@@ -282,7 +289,7 @@ function normalizeText(raw: string): ParsedParagraph[] {
     rawTranscriptParagraphs.forEach(pushParagraph);
 
     if (DEBUG_TEXT_PARSE) {
-      console.log("[Text Parse] transcript paragraphs built", {
+      debugLog("[Text Parse] transcript paragraphs built", {
         paragraphCount: paragraphs.length,
         firstRaw: paragraphs[0]?.raw?.slice(0, 220),
         secondRaw: paragraphs[1]?.raw?.slice(0, 220)
@@ -331,7 +338,7 @@ function deduplicateSpeakerName(speakerName: string): string {
 }
 
 function deduplicateRepeatedSpeakerNames(text: string): string {
-  console.log("[Dedupe] Starting deduplication", { textLength: text.length, textPreview: text.substring(0, 300) });
+  debugLog("[Dedupe] Starting deduplication", { textLength: text.length, textPreview: text.substring(0, 300) });
   
   // IMPORTANT: avoid /i here; [A-Z] becomes meaningless and words like "the"/"if" start matching.
   const speakerNamePattern = `(?:${TITLE_PATTERN})?(?:[A-Z][a-z]+(?:\\s+[A-Z][a-z]+){0,3}|[Ss]peaker\\s+[0-9]+)`;
@@ -356,7 +363,7 @@ function deduplicateRepeatedSpeakerNames(text: string): string {
       
       const repeatedFullNamePattern = new RegExp(`(${escapedName})(?:\\s+\\1)+\\s*:`, "g");
       if (repeatedFullNamePattern.test(beforeMatch + match)) {
-        console.log("[Dedupe] Found repeated full name", { 
+        debugLog("[Dedupe] Found repeated full name", { 
           original: match, 
           cleaned: cleanName + " :",
           beforeMatch: beforeMatch.substring(Math.max(0, beforeMatch.length - 100))
@@ -371,13 +378,13 @@ function deduplicateRepeatedSpeakerNames(text: string): string {
     result = result.replace(repeatedPattern, (match, name) => {
       const cleaned = deduplicateSpeakerName(name) + " :";
       if (match !== cleaned) {
-        console.log("[Dedupe] Found repeated pattern", { original: match, cleaned });
+        debugLog("[Dedupe] Found repeated pattern", { original: match, cleaned });
       }
       return cleaned;
     });
     
     if (result !== beforeIteration) {
-      console.log("[Dedupe] Iteration changed result", { 
+      debugLog("[Dedupe] Iteration changed result", { 
         iteration: iterations,
         changed: true,
         resultPreview: result.substring(0, 300)
@@ -385,7 +392,7 @@ function deduplicateRepeatedSpeakerNames(text: string): string {
     }
   }
   
-  console.log("[Dedupe] Deduplication complete", { 
+  debugLog("[Dedupe] Deduplication complete", { 
     iterations,
     originalLength: text.length,
     resultLength: result.length,
@@ -415,8 +422,6 @@ function cleanTranscriptParagraph(text: string): string {
   cleaned = cleaned.replace(/\[inaudible[^\]]*\]/gi, " ");
   cleaned = cleaned.replace(/Transcripts\s+Home.*$/i, "");
   cleaned = cleaned.replace(/Read\s+the\s+transcript\s+here.*$/i, "");
-  cleaned = cleaned.replace(/NY\s+Governor.*unveil.*$/i, "");
-  cleaned = cleaned.replace(/path\s+to\s+statewide.*$/i, "");
   cleaned = cleaned.replace(/.*\s+\|\s+Rev.*$/i, "");
   cleaned = cleaned.replace(/Help\s+Center\s+Developers.*$/i, "");
   cleaned = cleaned.replace(/Contact\s+Support.*$/i, "");
@@ -506,7 +511,7 @@ function splitTranscriptWords(text: string): string[] {
     .replace(/[\u201C\u201D]/g, '"')
     .replace(/[\u2018\u2019]/g, "'");
   
-  console.log("[Word Split] splitTranscriptWords called", { 
+  debugLog("[Word Split] splitTranscriptWords called", { 
     textPreview: normalized.substring(0, 200),
     textLength: normalized.length 
   });
@@ -532,7 +537,7 @@ function splitTranscriptWords(text: string): string[] {
     // always the *last* capture group, not index 2.
     const contentPart = speakerMatch[speakerMatch.length - 1]?.trim() || "";
     
-    console.log("[Word Split] Found speaker line", { 
+    debugLog("[Word Split] Found speaker line", { 
       fullSpeakerLine,
       contentPreview: contentPart.substring(0, 50)
     });
@@ -540,7 +545,7 @@ function splitTranscriptWords(text: string): string[] {
     fullSpeakerLine = deduplicateRepeatedSpeakerNames(fullSpeakerLine);
     const cleanSpeakerName = deduplicateSpeakerName(fullSpeakerLine.replace(/:\s*$/, "").trim());
     
-    console.log("[Word Split] After deduplication", { 
+    debugLog("[Word Split] After deduplication", { 
       original: speakerMatch[1].trim(),
       deduplicated: cleanSpeakerName
     });
@@ -559,22 +564,22 @@ function splitTranscriptWords(text: string): string[] {
     if (titlePart && namePart) {
       words.push(titlePart);
       words.push(namePart + ":");
-      console.log("[Word Split] Split into title and name", { titlePart, namePart: namePart + ":" });
+      debugLog("[Word Split] Split into title and name", { titlePart, namePart: namePart + ":" });
     } else if (namePart) {
       words.push(namePart + ":");
-      console.log("[Word Split] Split into name only", { namePart: namePart + ":" });
+      debugLog("[Word Split] Split into name only", { namePart: namePart + ":" });
     } else {
       words.push(cleanSpeakerName + ":");
-      console.log("[Word Split] Using full speaker line", { fullSpeakerLine: cleanSpeakerName + ":" });
+      debugLog("[Word Split] Using full speaker line", { fullSpeakerLine: cleanSpeakerName + ":" });
     }
     
     if (contentPart) {
       const contentWords = contentPart.split(/\s+/).filter(Boolean);
       words.push(...contentWords);
-      console.log("[Word Split] Added content words", { contentWordCount: contentWords.length });
+      debugLog("[Word Split] Added content words", { contentWordCount: contentWords.length });
     }
     
-    console.log("[Word Split] Final words array", { 
+    debugLog("[Word Split] Final words array", { 
       wordCount: words.length,
       firstWords: words.slice(0, 5)
     });
@@ -615,6 +620,7 @@ const App: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showParagraph, setShowParagraph] = useState(false);
+  const [pauseAtParagraphEnd, setPauseAtParagraphEnd] = useState(false);
   const [hasLoadedContent, setHasLoadedContent] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
@@ -650,7 +656,11 @@ const App: React.FC = () => {
   const pivotRef = useRef<HTMLSpanElement>(null);
   const rightPartRef = useRef<HTMLSpanElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const wordDisplayRef = useRef<HTMLDivElement>(null);
   const [pivotOffset, setPivotOffset] = useState(0);
+  const [layoutTick, setLayoutTick] = useState(0);
+  const [wordFontPxOverride, setWordFontPxOverride] = useState<number | null>(null);
+  const baseWordFontPxRef = useRef<number>(0);
 
   const hasContent = words.length > 0;
 
@@ -670,7 +680,7 @@ const App: React.FC = () => {
   };
 
   const normalizeNameWord = (word: string): string => {
-    // Trim common punctuation so "Hochul:" matches "Hochul"
+    // Trim common punctuation so "Doe:" matches "Doe"
     return word
       .replace(/^[^A-Za-z0-9'-]+/, "")
       .replace(/[^A-Za-z0-9'-]+$/, "")
@@ -750,7 +760,7 @@ const App: React.FC = () => {
         const speakerNum = nextWord;
         const fullSpeakerName = speakerNames.get(`Speaker ${speakerNum}`) || `Speaker ${speakerNum}`;
         displayWord = fullSpeakerName;
-        console.log("[Display Word] Speaker pattern match", { 
+        debugLog("[Display Word] Speaker pattern match", { 
           originalWord: trimmedWord,
           nextWord: speakerNum,
           displayWord
@@ -773,7 +783,7 @@ const App: React.FC = () => {
       const prevWordIsTitle = isTitleWord(prevWord);
       const currentWordIsTitle = isTitleWord(trimmedWord.replace(/:/g, ""));
       
-      // Check for two-word combinations (e.g., "Kathy Hochul") - but NOT if prev word is a title
+      // Check for two-word combinations (e.g., "Jane Doe") - but NOT if prev word is a title
       if (wordIndex > 0 && !prevWordIsTitle && !currentWordIsTitle) {
         const combined = `${prevWord} ${trimmedWord}`;
         const combinedFullName = speakerNames.get(combined.replace(/:/g, "").trim());
@@ -781,7 +791,7 @@ const App: React.FC = () => {
           const prevDisplay = getDisplayWord(prevWord, context, wordIndex - 1, allWords);
           if (prevDisplay !== combinedFullName) {
             displayWord = combinedFullName;
-            console.log("[Display Word] Combined word match", { 
+            debugLog("[Display Word] Combined word match", { 
               prevWord, 
               currentWord: trimmedWord, 
               combined, 
@@ -798,7 +808,7 @@ const App: React.FC = () => {
         const fullName = speakerNames.get(wordWithoutColon);
         if (fullName && trimmedWord !== fullName && trimmedWord !== fullName + ":") {
           displayWord = fullName + (trimmedWord.endsWith(":") ? ":" : "");
-          console.log("[Display Word] Single word match in speaker line", { 
+          debugLog("[Display Word] Single word match in speaker line", { 
             originalWord: trimmedWord, 
             displayWord,
             wordIndex
@@ -808,7 +818,7 @@ const App: React.FC = () => {
     }
     
     if (displayWord !== originalWord) {
-      console.log("[Display Word] Word replaced", { 
+      debugLog("[Display Word] Word replaced", { 
         original: originalWord, 
         display: displayWord,
         wordIndex,
@@ -860,6 +870,16 @@ const App: React.FC = () => {
     };
   }, [parsedParagraphs, hasContent, currentIndex]);
 
+  const paragraphStartOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let offset = 0;
+    for (const p of parsedParagraphs) {
+      offsets.push(offset);
+      offset += p.words.length;
+    }
+    return offsets;
+  }, [parsedParagraphs]);
+
   const intervalMs = useMemo(() => {
     if (wpm <= 0) return 0;
     return (60_000 / wpm) | 0;
@@ -882,6 +902,18 @@ const App: React.FC = () => {
           return prev;
         }
         const advance = getReaderFrameAtIndex(prev).advance;
+
+        if (pauseAtParagraphEnd && parsedParagraphs.length) {
+          const pos = findParagraphForWord(parsedParagraphs, prev);
+          const start = paragraphStartOffsets[pos.paragraphIndex] ?? 0;
+          const end = start + parsedParagraphs[pos.paragraphIndex].words.length - 1;
+          // Pause after the last word/frame of the paragraph has been shown.
+          if (prev + advance - 1 >= end && prev < words.length - 1) {
+            setIsPlaying(false);
+            return prev;
+          }
+        }
+
         return Math.min(prev + advance, words.length - 1);
       });
     }, intervalMs);
@@ -892,11 +924,22 @@ const App: React.FC = () => {
         timerRef.current = null;
       }
     };
-  }, [isPlaying, hasContent, intervalMs, words.length, parsedParagraphs, speakerNames, words]);
+  }, [
+    isPlaying,
+    hasContent,
+    intervalMs,
+    words.length,
+    parsedParagraphs,
+    speakerNames,
+    words,
+    pauseAtParagraphEnd,
+    paragraphStartOffsets
+  ]);
 
   useEffect(() => {
-    if (!hasContent || !leftPartRef.current || !pivotRef.current || !rightPartRef.current) {
+    if (!hasContent || !leftPartRef.current || !pivotRef.current || !rightPartRef.current || !wordDisplayRef.current) {
       setPivotOffset(0);
+      setWordFontPxOverride(null);
       return;
     }
 
@@ -904,13 +947,51 @@ const App: React.FC = () => {
     const pivotWidth = pivotRef.current.offsetWidth;
     const rightWidth = rightPartRef.current.offsetWidth;
 
-    const totalWidth = leftWidth + pivotWidth + rightWidth;
     const pivotCenterX = leftWidth + pivotWidth / 2;
-    const desiredCenterX = totalWidth / 2;
+    const containerWidth = wordDisplayRef.current.clientWidth;
+    const desiredCenterX = containerWidth / 2;
 
-    const offset = desiredCenterX - pivotCenterX;
+    // The word line is centered by flex layout, so its left edge starts at:
+    // (containerWidth - wordWidth) / 2. We must include that in the pivot position.
+    const wordWidth = leftWidth + pivotWidth + rightWidth;
+    const wordLineStartX = (containerWidth - wordWidth) / 2;
+    const currentPivotX = wordLineStartX + pivotCenterX;
+
+    // Keep the pivot anchored to the center of the Reader window, even for long words.
+    const offset = desiredCenterX - currentPivotX;
     setPivotOffset(offset);
-  }, [currentWordDisplay, pivotParts, hasContent]);
+
+    // Auto font-size reduction for long words (min 22px) based on available width.
+    // Most words should keep the default CSS font size (clamp).
+    const availableWidth = Math.max(0, containerWidth - 24); // small padding for safety
+
+    if (!baseWordFontPxRef.current || wordFontPxOverride === null) {
+      const computed = window.getComputedStyle(wordDisplayRef.current).fontSize;
+      const parsed = Number.parseFloat(computed);
+      if (Number.isFinite(parsed) && parsed > 0) baseWordFontPxRef.current = parsed;
+    }
+
+    const basePx = baseWordFontPxRef.current || 0;
+    if (!basePx || wordWidth <= availableWidth) {
+      if (wordFontPxOverride !== null) setWordFontPxOverride(null);
+      return;
+    }
+
+    const scaled = Math.max(22, basePx * (availableWidth / wordWidth));
+    const next = Math.min(basePx, scaled);
+    if (wordFontPxOverride === null || Math.abs(wordFontPxOverride - next) > 0.5) {
+      setWordFontPxOverride(next);
+    }
+  }, [currentWordDisplay, pivotParts, hasContent, letterSpacing, fontFamily, layoutTick, wordFontPxOverride]);
+
+  useEffect(() => {
+    const onResize = () => {
+      setWordFontPxOverride(null);
+      setLayoutTick((t) => t + 1);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     if (isPlaying && hasContent && intervalMs > 0) {
@@ -925,7 +1006,7 @@ const App: React.FC = () => {
       "the","a","an","if","and","or","but","to","of","in","on","for","with","at","from","by","as","this","that","these","those"
     ]);
     
-    console.log("[Speaker Names] Extracting from original text", { textLength: normalizedInput.length });
+    debugLog("[Speaker Names] Extracting from original text", { textLength: normalizedInput.length });
     
     // IMPORTANT: avoid /i here; [A-Z] becomes meaningless and words like "the"/"if" start matching.
     const speakerLinePatternWithTimestamp = new RegExp(
@@ -936,11 +1017,11 @@ const App: React.FC = () => {
     
     for (const match of allSpeakerMatches) {
       const speakerLine = match[1].trim();
-      console.log("[Speaker Names] Found speaker line in original text", { speakerLine });
+      debugLog("[Speaker Names] Found speaker line in original text", { speakerLine });
       
       const speakerInfo = extractSpeakerName(speakerLine);
       if (speakerInfo) {
-        console.log("[Speaker Names] Extracted speaker info", {
+        debugLog("[Speaker Names] Extracted speaker info", {
           fullName: speakerInfo.fullName,
           fullNameWithoutTimestamp: speakerInfo.fullNameWithoutTimestamp,
           shortNames: speakerInfo.shortNames
@@ -969,7 +1050,7 @@ const App: React.FC = () => {
     
     const normalized = normalizeText(normalizedInput);
     
-    console.log("[Speaker Names] Also checking cleaned paragraphs", { paragraphCount: normalized.length });
+    debugLog("[Speaker Names] Also checking cleaned paragraphs", { paragraphCount: normalized.length });
     
     normalized.forEach((paragraph, index) => {
       const rawText = paragraph.raw;
@@ -979,14 +1060,14 @@ const App: React.FC = () => {
       const speakerMatch = rawText.match(speakerPattern2);
       
       if (speakerMatch && index < 10) {
-        console.log("[Speaker Names] Found speaker in cleaned text", { 
+        debugLog("[Speaker Names] Found speaker in cleaned text", { 
           index,
           match: speakerMatch[0],
           rawPreview: rawText.substring(0, 100)
         });
         const speakerInfo = extractSpeakerName(rawText);
         if (speakerInfo) {
-          console.log("[Speaker Names] Extracted from cleaned text", {
+          debugLog("[Speaker Names] Extracted from cleaned text", {
             fullName: speakerInfo.fullName,
             fullNameWithoutTimestamp: speakerInfo.fullNameWithoutTimestamp,
             shortNames: speakerInfo.shortNames
@@ -1014,7 +1095,7 @@ const App: React.FC = () => {
       }
     });
     
-    console.log("[Speaker Names] Final extracted speaker names", {
+    debugLog("[Speaker Names] Final extracted speaker names", {
       nameMapSize: nameMap.size,
       names: Array.from(nameMap.entries())
     });
@@ -1044,7 +1125,22 @@ const App: React.FC = () => {
 
   const handlePlayPause = () => {
     if (!hasContent) return;
-    setIsPlaying((prev) => !prev);
+    // If we are paused at the end of a paragraph, advance once before resuming so we don't
+    // immediately pause again on the same last word.
+    if (!isPlaying && pauseAtParagraphEnd && parsedParagraphs.length) {
+      const pos = findParagraphForWord(parsedParagraphs, currentIndex);
+      const start = paragraphStartOffsets[pos.paragraphIndex] ?? 0;
+      const end = start + parsedParagraphs[pos.paragraphIndex].words.length - 1;
+      const advance = getReaderFrameAtIndex(currentIndex).advance;
+      if (currentIndex + advance - 1 >= end && currentIndex < words.length - 1) {
+        setCurrentIndex(Math.min(currentIndex + advance, words.length - 1));
+      }
+    }
+
+    setIsPlaying((prev) => {
+      const next = !prev;
+      return next;
+    });
   };
 
   const handleRestart = () => {
@@ -1202,9 +1298,6 @@ const App: React.FC = () => {
       /^sign\s+up\s+to\s+get/i,
       /^content\s+delivered\s+straight/i,
       /^\[inaudible/i,
-      /^ny\s+governor\s+.*\s+and\s+nyc\s+mayor/i,
-      /^unveil\s+a\s+new\s+free\s+child\s+care/i,
-      /^path\s+to\s+statewide\s+universal\s+childcare/i,
       /^.*\s+\|\s+rev$/i,
       /^help\s+center\s+developers\s+security/i,
       /^human\s+transcription\s+expert\s+human\s+transcription/i,
@@ -1271,13 +1364,8 @@ const App: React.FC = () => {
       /^speech\s+to\s+text\s+technology/i,
       /^surveys\s+and\s+data/i,
       /^video\s+editing/i,
-      /^ny\s+universal\s+childcare\s+announcement$/i,
-      /^ny\s+universal\s+childcare\s+announcement\s+ny\s+universal/i,
-      /^transcripts\s+home\s+news\s+ny\s+universal/i,
       /^transcripts\s+home\s+news$/i,
       /^keep\s+reading$/i,
-      /^greenland\s+mineral/i,
-      /^trump\s+at\s+the\s+detroit/i,
       /^ny\s+state\s+of\s+the\s+state/i,
       /^supreme\s+court\s+hearing/i,
       /^nurse\s+strike/i,
@@ -1310,26 +1398,6 @@ const App: React.FC = () => {
     }
     
     if (trimmed.match(/^view\s+all/i) && trimmed.length < 50) {
-      return true;
-    }
-    
-    if (trimmed.match(/^transcripts\s+home\s+news\s+ny\s+universal\s+childcare/i)) {
-      return true;
-    }
-    
-    if (trimmed.match(/^transcripts\s+home\s+news\s+ny\s+universal\s+childcare\s+announcement/i)) {
-      return true;
-    }
-    
-    if (trimmed.match(/^ny\s+universal\s+childcare\s+announcement\s+ny\s+universal\s+childcare\s+announcement/i)) {
-      return true;
-    }
-    
-    if (trimmed.match(/^ny\s+governor\s+kathy\s+hochul\s+and\s+nyc\s+mayor/i) && !trimmed.match(/\([0-9]{1,2}:[0-9]{2}\):/)) {
-      return true;
-    }
-    
-    if (trimmed.match(/^kathy\s+hochul\s+speaks\s+to\s+the\s+press/i)) {
       return true;
     }
     
@@ -1373,7 +1441,7 @@ const App: React.FC = () => {
   };
 
   const splitTranscriptBySpeakers = (text: string): string[] => {
-    console.log("[URL Parse] splitTranscriptBySpeakers called", { textLength: text.length });
+    debugLog("[URL Parse] splitTranscriptBySpeakers called", { textLength: text.length });
     const paragraphs: string[] = [];
 
     // Split by speaker marker positions instead of relying on newlines.
@@ -1462,7 +1530,7 @@ const App: React.FC = () => {
 
     if (currentRaw) pushClean(currentRaw);
 
-    console.log("[URL Parse] Paragraphs collected from transcript split", {
+    debugLog("[URL Parse] Paragraphs collected from transcript split", {
       paragraphCount: paragraphs.length,
     });
     
@@ -1480,7 +1548,7 @@ const App: React.FC = () => {
       return trimmed.length > 5;
     });
     
-    console.log("[URL Parse] Transcript paragraphs filtered", { 
+    debugLog("[URL Parse] Transcript paragraphs filtered", { 
       originalCount: paragraphs.length,
       filteredCount: filtered.length 
     });
@@ -1489,7 +1557,7 @@ const App: React.FC = () => {
   };
 
   const parseHtmlToText = (html: string): string => {
-      console.log("[URL Parse] parseHtmlToText called", { 
+      debugLog("[URL Parse] parseHtmlToText called", { 
         htmlLength: html.length,
         htmlFirstChars: html.substring(0, 200)
       });
@@ -1498,7 +1566,7 @@ const App: React.FC = () => {
       const doc = parser.parseFromString(html, "text/html");
       const bodyText = doc.body?.textContent || "";
       const bodyTimestamps = bodyText.match(/\([0-9]{1,2}:[0-9]{2}\):/g);
-      console.log("[URL Parse] HTML parsed into DOM", { 
+      debugLog("[URL Parse] HTML parsed into DOM", { 
         bodyTextLength: bodyText.length,
         bodyTextPreview: bodyText.substring(0, 300),
         hasBody: !!doc.body,
@@ -1527,12 +1595,12 @@ const App: React.FC = () => {
         "[class*='transcripts-home'], " +
         "a[href*='#'], a[href*='javascript']"
       );
-      console.log("[URL Parse] Elements to remove identified", { 
+      debugLog("[URL Parse] Elements to remove identified", { 
         count: elementsToRemove.length 
       });
       
       const timestampsBeforeRemoval = doc.body?.textContent?.match(/\([0-9]{1,2}:[0-9]{2}\):/g);
-      console.log("[URL Parse] Timestamps before removing elements", {
+      debugLog("[URL Parse] Timestamps before removing elements", {
         count: timestampsBeforeRemoval ? timestampsBeforeRemoval.length : 0,
         sample: timestampsBeforeRemoval ? timestampsBeforeRemoval.slice(0, 10) : []
       });
@@ -1544,7 +1612,7 @@ const App: React.FC = () => {
         const hasMainContentId = el.id === "main-content" || el.id === "transcript-content" || el.id === "content";
         
         if (hasTranscriptContent || hasMainContentId) {
-          console.log("[URL Parse] PRESERVING element with transcript content", {
+          debugLog("[URL Parse] PRESERVING element with transcript content", {
             tagName: el.tagName,
             className: el.className || "none",
             id: el.id || "none",
@@ -1557,7 +1625,7 @@ const App: React.FC = () => {
         }
         
         if (elTimestamps && elTimestamps.length > 0) {
-          console.log("[URL Parse] Removing element with timestamps (but < 2, so likely not transcript)", {
+          debugLog("[URL Parse] Removing element with timestamps (but < 2, so likely not transcript)", {
             tagName: el.tagName,
             className: el.className || "none",
             id: el.id || "none",
@@ -1570,7 +1638,7 @@ const App: React.FC = () => {
       });
       
       const timestampsAfterRemoval = doc.body?.textContent?.match(/\([0-9]{1,2}:[0-9]{2}\):/g);
-      console.log("[URL Parse] Timestamps after removing elements", {
+      debugLog("[URL Parse] Timestamps after removing elements", {
         count: timestampsAfterRemoval ? timestampsAfterRemoval.length : 0,
         sample: timestampsAfterRemoval ? timestampsAfterRemoval.slice(0, 10) : []
       });
@@ -1618,9 +1686,9 @@ const App: React.FC = () => {
         ".story"
       ];
       
-      console.log("[URL Parse] Searching for transcript container");
-      console.log("[URL Parse] Body text sample (first 2000 chars):", bodyText.substring(0, 2000));
-      console.log("[URL Parse] Body text sample (last 2000 chars):", bodyText.substring(Math.max(0, bodyText.length - 2000)));
+      debugLog("[URL Parse] Searching for transcript container");
+      debugLog("[URL Parse] Body text sample (first 2000 chars):", bodyText.substring(0, 2000));
+      debugLog("[URL Parse] Body text sample (last 2000 chars):", bodyText.substring(Math.max(0, bodyText.length - 2000)));
       
       for (const selector of transcriptSelectors) {
         const found = doc.querySelector(selector);
@@ -1632,7 +1700,7 @@ const App: React.FC = () => {
           const hasTimestamp = text.match(/\([0-9]{1,2}:[0-9]{2}\):/);
           const timestampMatches = text.match(/\([0-9]{1,2}:[0-9]{2}\):/g);
           
-          console.log("[URL Parse] Checking selector", { 
+          debugLog("[URL Parse] Checking selector", { 
             selector, 
             found: !!found,
             textLength: text.length,
@@ -1650,7 +1718,7 @@ const App: React.FC = () => {
           
           if (hasTranscriptLine || hasTranscriptPattern || hasTimestamp) {
             transcriptContainer = found;
-            console.log("[URL Parse] Transcript container found", { 
+            debugLog("[URL Parse] Transcript container found", { 
               selector,
               textLength: text.length,
               timestampCount: timestampMatches ? timestampMatches.length : 0
@@ -1658,7 +1726,7 @@ const App: React.FC = () => {
             break;
           }
         } else {
-          console.log("[URL Parse] Selector not found", { selector });
+          debugLog("[URL Parse] Selector not found", { selector });
         }
       }
       
@@ -1666,7 +1734,7 @@ const App: React.FC = () => {
         transcriptContainer = doc.body;
         const currentBodyText = doc.body?.textContent || "";
         const currentBodyTimestamps = currentBodyText.match(/\([0-9]{1,2}:[0-9]{2}\):/g);
-        console.log("[URL Parse] No transcript container found, using body", {
+        debugLog("[URL Parse] No transcript container found, using body", {
           originalBodyTextLength: bodyText.length,
           currentBodyTextLength: currentBodyText.length,
           bodyTextSample: currentBodyText.substring(0, 1000),
@@ -1703,7 +1771,7 @@ const App: React.FC = () => {
       const allTimestamps = fullText.match(/\([0-9]{1,2}:[0-9]{2}\):/g);
       const speakerPatternMatches = fullText.match(new RegExp(`(?:${TITLE_PATTERN})?(?:[A-Z][a-z]+\\s+|Speaker\\s+[0-9]+\\s+)\\([0-9]{1,2}:[0-9]{2}\\):`, "gi"));
       
-      console.log("[URL Parse] Full text extracted from container", { 
+      debugLog("[URL Parse] Full text extracted from container", { 
         fullTextLength: fullText.length,
         fullTextPreview: fullText.substring(0, 2000),
         fullTextFirstChars: fullText.substring(0, 500),
@@ -1734,7 +1802,7 @@ const App: React.FC = () => {
       const allTimestampMatches = fullText.match(/\([0-9]{1,2}:[0-9]{2}\):/g);
       const hasMultipleTimestamps = allTimestampMatches && allTimestampMatches.length >= 3;
       
-      console.log("[URL Parse] Transcript format detection", {
+      debugLog("[URL Parse] Transcript format detection", {
         transcriptLineMatchesCount: transcriptLineMatches?.length || 0,
         transcriptLineMatchesPreview: transcriptLineMatches?.slice(0, 5) || [],
         hasTranscriptFormat,
@@ -1745,15 +1813,15 @@ const App: React.FC = () => {
       });
       
       if (hasTranscriptFormat || hasMultipleTimestamps) {
-        console.log("[URL Parse] Processing as transcript format");
+        debugLog("[URL Parse] Processing as transcript format");
         const transcriptParagraphs = splitTranscriptBySpeakers(fullText);
-        console.log("[URL Parse] Transcript paragraphs split", { 
+        debugLog("[URL Parse] Transcript paragraphs split", { 
           paragraphCount: transcriptParagraphs.length 
         });
         if (transcriptParagraphs.length > 0) {
           let result = transcriptParagraphs.join("\n\n");
           result = deduplicateRepeatedSpeakerNames(result);
-          console.log("[URL Parse] Returning transcript paragraphs", { 
+          debugLog("[URL Parse] Returning transcript paragraphs", { 
             resultLength: result.length 
           });
           return result;
@@ -1761,19 +1829,19 @@ const App: React.FC = () => {
       }
       
       const hasAnyTranscriptLine = fullText.match(/\([0-9]{1,2}:[0-9]{2}\):/);
-      console.log("[URL Parse] Checking for any transcript line", { 
+      debugLog("[URL Parse] Checking for any transcript line", { 
         hasAnyTranscriptLine: !!hasAnyTranscriptLine 
       });
       if (hasAnyTranscriptLine) {
-        console.log("[URL Parse] Processing as transcript with single timestamp");
+        debugLog("[URL Parse] Processing as transcript with single timestamp");
         const transcriptParagraphs = splitTranscriptBySpeakers(fullText);
-        console.log("[URL Parse] Transcript paragraphs split (single timestamp)", { 
+        debugLog("[URL Parse] Transcript paragraphs split (single timestamp)", { 
           paragraphCount: transcriptParagraphs.length 
         });
         if (transcriptParagraphs.length > 0) {
           let result = transcriptParagraphs.join("\n\n");
           result = deduplicateRepeatedSpeakerNames(result);
-          console.log("[URL Parse] Returning transcript paragraphs (single timestamp)", { 
+          debugLog("[URL Parse] Returning transcript paragraphs (single timestamp)", { 
             resultLength: result.length 
           });
           return result;
@@ -1796,7 +1864,7 @@ const App: React.FC = () => {
                 processedTexts.add(text);
                 paragraphs.push(text);
                 if (hasTranscriptMarker) {
-                  console.log("[URL Parse] Found paragraph with transcript marker", {
+                  debugLog("[URL Parse] Found paragraph with transcript marker", {
                     depth,
                     textLength: text.length,
                     textPreview: text.substring(0, 200),
@@ -1823,7 +1891,7 @@ const App: React.FC = () => {
                   processedTexts.add(text);
                   paragraphs.push(text);
                   if (hasTranscriptMarker && depth < 3) {
-                    console.log("[URL Parse] Found paragraph with transcript marker (P/DIV)", {
+                    debugLog("[URL Parse] Found paragraph with transcript marker (P/DIV)", {
                       depth,
                       tagName,
                       textLength: text.length,
@@ -1840,14 +1908,14 @@ const App: React.FC = () => {
         }
       };
       
-      console.log("[URL Parse] Starting paragraph collection from container", {
+      debugLog("[URL Parse] Starting paragraph collection from container", {
         containerTagName: transcriptContainer.tagName,
         containerTextLength: transcriptContainer.textContent?.length || 0,
         containerChildrenCount: transcriptContainer.children.length
       });
       
       collectParagraphs(transcriptContainer);
-      console.log("[URL Parse] Paragraphs collected", { 
+      debugLog("[URL Parse] Paragraphs collected", { 
         paragraphCount: paragraphs.length,
         paragraphsPreview: paragraphs.slice(0, 10).map((p, i) => ({
           index: i,
@@ -1862,7 +1930,7 @@ const App: React.FC = () => {
       });
       
       if (paragraphs.length === 0) {
-        console.log("[URL Parse] No paragraphs found, returning full text", {
+        debugLog("[URL Parse] No paragraphs found, returning full text", {
           fullTextLength: fullText.length,
           fullTextPreview: fullText.substring(0, 500)
         });
@@ -1874,7 +1942,7 @@ const App: React.FC = () => {
         if (isTranscriptLine(paragraphs[i]) || 
             paragraphs[i].match(new RegExp(`^(?:${TITLE_PATTERN})?(?:[A-Z][a-z]+\\s+|Speaker\\s+[0-9]+\\s+)\\([0-9]{1,2}:[0-9]{2}\\):`, "i"))) {
           transcriptStartIndex = i;
-          console.log("[URL Parse] Transcript start found (method 1)", { index: i });
+          debugLog("[URL Parse] Transcript start found (method 1)", { index: i });
           break;
         }
       }
@@ -1883,7 +1951,7 @@ const App: React.FC = () => {
         for (let i = 0; i < paragraphs.length; i++) {
           if (paragraphs[i].match(/\([0-9]{1,2}:[0-9]{2}\):/)) {
             transcriptStartIndex = i;
-            console.log("[URL Parse] Transcript start found (method 2)", { index: i });
+            debugLog("[URL Parse] Transcript start found (method 2)", { index: i });
             break;
           }
         }
@@ -1891,7 +1959,7 @@ const App: React.FC = () => {
       
       if (transcriptStartIndex === -1) {
         transcriptStartIndex = 0;
-        console.log("[URL Parse] No transcript start found, using index 0");
+        debugLog("[URL Parse] No transcript start found, using index 0");
       }
       
       const transcriptParagraphs = paragraphs.slice(transcriptStartIndex)
@@ -1913,22 +1981,22 @@ const App: React.FC = () => {
           return true;
         });
       
-      console.log("[URL Parse] Transcript paragraphs filtered", { 
+      debugLog("[URL Parse] Transcript paragraphs filtered", { 
         transcriptParagraphsCount: transcriptParagraphs.length,
         transcriptStartIndex
       });
       
       if (transcriptParagraphs.length === 0) {
-        console.log("[URL Parse] No transcript paragraphs after filtering, returning full text");
+        debugLog("[URL Parse] No transcript paragraphs after filtering, returning full text");
         return fullText.trim();
       }
       
       const result = transcriptParagraphs.join("\n\n");
-      console.log("[URL Parse] Returning final result", { resultLength: result.length });
+      debugLog("[URL Parse] Returning final result", { resultLength: result.length });
       return result;
     } catch (error) {
       console.error("[URL Parse] HTML parsing error:", error);
-      console.log("[URL Parse] Using fallback text extraction");
+      debugLog("[URL Parse] Using fallback text extraction");
       const fallback = html
         .replace(/<script[\s\S]*?<\/script>/gi, "")
         .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -1936,7 +2004,7 @@ const App: React.FC = () => {
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " ")
         .trim();
-      console.log("[URL Parse] Fallback text extracted", { fallbackLength: fallback.length });
+      debugLog("[URL Parse] Fallback text extracted", { fallbackLength: fallback.length });
       return fallback;
     }
   };
@@ -1948,7 +2016,7 @@ const App: React.FC = () => {
       `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
     ];
     
-    console.log("[URL Parse] fetchWithProxy called", { 
+    debugLog("[URL Parse] fetchWithProxy called", { 
       url, 
       proxyIndex, 
       totalProxies: proxyServices.length,
@@ -1956,14 +2024,14 @@ const App: React.FC = () => {
     });
     
     if (proxyIndex >= proxyServices.length) {
-      console.log("[URL Parse] All proxy services exhausted", { 
+      debugLog("[URL Parse] All proxy services exhausted", { 
         attemptedProxies: proxyServices.length 
       });
       throw new Error("All proxy services failed");
     }
     
     const proxyUrl = proxyServices[proxyIndex];
-    console.log("[URL Parse] Attempting proxy fetch", { 
+    debugLog("[URL Parse] Attempting proxy fetch", { 
       proxyIndex, 
       proxyUrl: proxyUrl.substring(0, 100) + "...",
       targetUrl: url
@@ -1975,7 +2043,7 @@ const App: React.FC = () => {
     });
     
     const proxyContentType = res.headers.get("content-type");
-    console.log("[URL Parse] Proxy fetch response", { 
+    debugLog("[URL Parse] Proxy fetch response", { 
       proxyIndex, 
       status: res.status, 
       statusText: res.statusText,
@@ -1985,7 +2053,7 @@ const App: React.FC = () => {
     });
     
     if (!res.ok && proxyIndex < proxyServices.length - 1) {
-      console.log("[URL Parse] Proxy fetch failed, trying next proxy", { 
+      debugLog("[URL Parse] Proxy fetch failed, trying next proxy", { 
         currentProxyIndex: proxyIndex,
         nextProxyIndex: proxyIndex + 1 
       });
@@ -1997,18 +2065,18 @@ const App: React.FC = () => {
 
   const handleUrlSubmit = async (overrideUrl?: string) => {
     const candidateUrl = (overrideUrl ?? rawText).trim();
-    console.log("=== [URL Parse] handleUrlSubmit called ===", { rawText: candidateUrl });
+    debugLog("=== [URL Parse] handleUrlSubmit called ===", { rawText: candidateUrl });
     
     if (!candidateUrl) {
-      console.log("[URL Parse] No URL provided, skipping submission");
+      debugLog("[URL Parse] No URL provided, skipping submission");
       return;
     }
     
     const url = candidateUrl;
-    console.log("[URL Parse] Starting URL submission", { url, urlLength: url.length });
+    debugLog("[URL Parse] Starting URL submission", { url, urlLength: url.length });
     
     if (!url.match(/^https?:\/\//i)) {
-      console.log("[URL Parse] Invalid URL format", { url, urlLength: url.length });
+      debugLog("[URL Parse] Invalid URL format", { url, urlLength: url.length });
       setUrlError("Please enter a valid URL starting with http:// or https://");
       return;
     }
@@ -2021,7 +2089,7 @@ const App: React.FC = () => {
       let res: Response;
       let usedProxy = false;
       
-      console.log("[URL Parse] Attempting direct fetch", { url, urlLength: url.length });
+      debugLog("[URL Parse] Attempting direct fetch", { url, urlLength: url.length });
       try {
         res = await fetch(url, {
           headers: {
@@ -2030,7 +2098,7 @@ const App: React.FC = () => {
           }
         });
         const contentType = res.headers.get("content-type");
-        console.log("[URL Parse] Direct fetch successful", { 
+        debugLog("[URL Parse] Direct fetch successful", { 
           status: res.status, 
           statusText: res.statusText,
           contentType: contentType || "unknown",
@@ -2047,7 +2115,7 @@ const App: React.FC = () => {
            errorString.includes("CORS") ||
            errorString.includes("Access-Control"));
         
-        console.log("[URL Parse] Direct fetch failed", { 
+        debugLog("[URL Parse] Direct fetch failed", { 
           error: errorMessage,
           errorString: errorString,
           errorType: err?.constructor?.name || typeof err,
@@ -2055,16 +2123,15 @@ const App: React.FC = () => {
           errorName: err instanceof Error ? err.name : "Unknown"
         });
         if (err instanceof Error) {
-          console.log("[URL Parse] Error stack:", err.stack);
+          debugLog("[URL Parse] Error stack:", err.stack);
         }
         
         if (isCorsError) {
-          console.log("[URL Parse] CORS error detected, retrying with proxy");
-          setUrlError("CORS detected. Retrying with proxy...");
+          debugLog("[URL Parse] CORS error detected, retrying with proxy");
           usedProxy = true;
           res = await fetchWithProxy(url);
           const proxyContentType = res.headers.get("content-type");
-          console.log("[URL Parse] Proxy fetch successful", { 
+          debugLog("[URL Parse] Proxy fetch successful", { 
             status: res.status,
             statusText: res.statusText,
             contentType: proxyContentType || "unknown",
@@ -2072,13 +2139,13 @@ const App: React.FC = () => {
             usedProxy: true
           });
         } else {
-          console.log("[URL Parse] Non-CORS error, rethrowing", { error: errorMessage });
+          debugLog("[URL Parse] Non-CORS error, rethrowing", { error: errorMessage });
           throw err;
         }
       }
       
       if (!res.ok) {
-        console.log("[URL Parse] HTTP error response", { 
+        debugLog("[URL Parse] HTTP error response", { 
           status: res.status, 
           statusText: res.statusText 
         });
@@ -2087,14 +2154,14 @@ const App: React.FC = () => {
       
       const contentType = res.headers.get("content-type") || "";
       const isHtml = contentType.includes("text/html");
-      console.log("[URL Parse] Response content type determined", { 
+      debugLog("[URL Parse] Response content type determined", { 
         contentType, 
         isHtml,
         contentLength: res.headers.get("content-length")
       });
       
       const html = await res.text();
-      console.log("[URL Parse] Response text received", { 
+      debugLog("[URL Parse] Response text received", { 
         htmlLength: html.length,
         htmlPreview: html.substring(0, 200),
         htmlFirstChars: html.substring(0, 100),
@@ -2102,9 +2169,9 @@ const App: React.FC = () => {
       });
       
       if (isHtml) {
-        console.log("[URL Parse] Parsing HTML content");
+        debugLog("[URL Parse] Parsing HTML content");
         const extractedText = parseHtmlToText(html);
-        console.log("[URL Parse] HTML parsing complete", { 
+        debugLog("[URL Parse] HTML parsing complete", { 
           extractedTextLength: extractedText.length,
           extractedTextPreview: extractedText.substring(0, 300),
           extractedTextFirstChars: extractedText.substring(0, 150),
@@ -2113,14 +2180,14 @@ const App: React.FC = () => {
         });
         
         if (!extractedText.trim()) {
-          console.log("[URL Parse] No text content extracted from HTML");
+          debugLog("[URL Parse] No text content extracted from HTML");
           setUrlError("No readable text content found on this page. The page may require JavaScript to load content.");
           setIsLoadingUrl(false);
           return;
         }
         
         const wordCount = extractedText.split(/\s+/).filter(w => w.length > 0).length;
-        console.log("[URL Parse] Setting extracted text and resetting reader", { 
+        debugLog("[URL Parse] Setting extracted text and resetting reader", { 
           extractedTextLength: extractedText.length,
           wordCount: wordCount,
           extractedTextPreview: extractedText.substring(0, 400),
@@ -2130,11 +2197,11 @@ const App: React.FC = () => {
         resetFromText(extractedText);
         setHasLoadedContent(true);
       } else {
-        console.log("[URL Parse] Non-HTML content, using as plain text", { 
+        debugLog("[URL Parse] Non-HTML content, using as plain text", { 
           htmlLength: html.length 
         });
         if (!html.trim()) {
-          console.log("[URL Parse] Empty text content");
+          debugLog("[URL Parse] Empty text content");
           setUrlError("No text content found at this URL.");
           setIsLoadingUrl(false);
           return;
@@ -2142,17 +2209,17 @@ const App: React.FC = () => {
         setRawText(html);
         resetFromText(html);
         setHasLoadedContent(true);
-        console.log("[URL Parse] Plain text content loaded", { 
+        debugLog("[URL Parse] Plain text content loaded", { 
           textLength: html.length,
           wordCount: html.split(/\s+/).length
         });
       }
       
       setIsLoadingUrl(false);
-      console.log("[URL Parse] URL submission completed successfully");
+      debugLog("[URL Parse] URL submission completed successfully");
     } catch (err) {
       console.error("[URL Parse] ===== ERROR CAUGHT IN OUTER CATCH =====", err);
-      console.log("[URL Parse] Error details", {
+      debugLog("[URL Parse] Error details", {
         error: err,
         errorType: err?.constructor?.name,
         errorMessage: err instanceof Error ? err.message : String(err),
@@ -2171,7 +2238,7 @@ const App: React.FC = () => {
         errorMessage = `Failed to fetch URL: ${error.message}. The URL may be inaccessible or blocked.`;
       }
       
-      console.log("[URL Parse] Error handling complete", { 
+      debugLog("[URL Parse] Error handling complete", { 
         errorMessage,
         errorType: error.constructor.name,
         errorMessageDetail: error.message
@@ -2355,240 +2422,221 @@ const App: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            <div className="setting-group">
+              <label className="setting-label">Pause at paragraph end</label>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={pauseAtParagraphEnd}
+                  onChange={(e) => setPauseAtParagraphEnd(e.target.checked)}
+                />
+                <span className="toggle-text">Stop after each paragraph.</span>
+              </label>
+            </div>
           </div>
         </section>
       )}
 
       <main className="layout">
-        <section className="card">
-          <div className="card-header">
-            <div className="card-title">Reader</div>
-            <div className="card-badge">
-              {hasContent ? `${currentIndex + 1} / ${words.length} words` : "Idle"}
-            </div>
-          </div>
-
-          <div className="reader-screen">
-            <div 
-              className="word-display"
-              style={{ 
-                fontFamily: fontFamily,
-                letterSpacing: `${letterSpacingToEm(letterSpacing)}em`
-              }}
-            >
-              {hasContent ? (
-                <div 
-                  className="word-line"
-                  style={{ transform: `translateX(${pivotOffset}px)` }}
-                >
-                  <span ref={leftPartRef} className="word-left">{pivotParts.left}</span>
-                  <span 
-                    ref={pivotRef} 
-                    className="pivot-letter"
-                    style={{ color: pivotColor }}
-                  >
-                    {pivotParts.pivot}
-                  </span>
-                  <span ref={rightPartRef} className="word-right">{pivotParts.right}</span>
+        <div className="reader-stage">
+          <section className="card reader-card">
+            <div className="card-header">
+              <div className="card-title">Reader</div>
+              <div className="card-badges">
+                <div className="card-badge">
+                  {hasContent ? `${currentIndex + 1} / ${words.length} words` : "Idle"}
                 </div>
-              ) : (
-                <span className="muted">
-                  Paste text, choose a file, or load a URL to begin.
-                </span>
+                {hasContent && parsedParagraphs.length ? (
+                  <div className="card-badge">
+                    Paragraph {currentParagraphInfo ? currentParagraphInfo.paragraphIndex + 1 : 1} of{" "}
+                    {parsedParagraphs.length}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="reader-screen">
+              <div
+                ref={wordDisplayRef}
+                className="word-display"
+                style={{
+                  fontFamily: fontFamily,
+                  letterSpacing: `${letterSpacingToEm(letterSpacing)}em`,
+                  fontSize: wordFontPxOverride ? `${wordFontPxOverride}px` : undefined
+                }}
+              >
+                {hasContent ? (
+                  <div
+                    className="word-line"
+                    style={{ transform: `translateX(${pivotOffset}px)` }}
+                  >
+                    <span ref={leftPartRef} className="word-left">{pivotParts.left}</span>
+                    <span
+                      ref={pivotRef}
+                      className="pivot-letter"
+                      style={{ color: pivotColor }}
+                    >
+                      {pivotParts.pivot}
+                    </span>
+                    <span ref={rightPartRef} className="word-right">{pivotParts.right}</span>
+                  </div>
+                ) : (
+                  <div className="reader-input">
+                    {(() => {
+                      const isLoading = isLoadingUrl || isLoadingPdf;
+                      const errorMessage = urlError || pdfError;
+                      const showError = !!errorMessage && !isLoading;
+
+                      return (
+                        <>
+                          {isLoading ? (
+                            <div className="input-loading" aria-label="Loading">
+                              <div className="spinner" />
+                            </div>
+                          ) : null}
+
+                          {showError ? (
+                            <div className="input-error">
+                              {errorMessage}
+                            </div>
+                          ) : null}
+
+                          <textarea
+                            ref={textareaRef}
+                            className="text-input reader-textarea"
+                            placeholder="Paste text or a URL (by itself)…"
+                            value={rawText}
+                            onChange={(e) => setRawText(e.target.value)}
+                            onBlur={handleRawTextBlur}
+                            onPaste={handleRawTextPaste}
+                            disabled={isLoading}
+                          />
+
+                          <div className="input-footer reader-input-footer">
+                            <span className="input-hint">Paste text, paste a URL, or open a file.</span>
+                            <label className="file-input">
+                              <input
+                                type="file"
+                                accept=".txt,application/pdf"
+                                onChange={handleFileChange}
+                                disabled={isLoading}
+                              />
+                            </label>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div className="pivot-guide" />
+
+              {hasContent ? (
+              <div className="controls-row">
+                <div className="wpm-group">
+                  <button
+                    className="btn btn-icon btn-ghost"
+                    onClick={() => handleStep(-1)}
+                    disabled={!hasContent || currentIndex === 0}
+                    type="button"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handlePlayPause}
+                    disabled={!hasContent}
+                    type="button"
+                  >
+                    {isPlaying ? "Pause" : "Play"}
+                  </button>
+                  <button
+                    className="btn btn-icon btn-ghost"
+                    onClick={() => handleStep(1)}
+                    disabled={!hasContent || currentIndex >= words.length - 1}
+                    type="button"
+                  >
+                    ›
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={handleRestart}
+                    disabled={!hasContent}
+                    type="button"
+                  >
+                    Restart
+                  </button>
+                </div>
+
+                <div className="wpm-group">
+                  <span className="wpm-value">{wpm} wpm</span>
+                  <input
+                    className="slider range-input"
+                    type="range"
+                    min={150}
+                    max={900}
+                    step={10}
+                    value={wpm}
+                    onChange={(e) => setWpm(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+              ) : null}
+
+              {hasContent ? (
+              <div className="controls-row">
+                <div className="wpm-group">
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => handleParagraphJump(-1)}
+                    disabled={!hasContent}
+                  >
+                    ↑ Paragraph
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => handleParagraphJump(1)}
+                    disabled={!hasContent}
+                  >
+                    ↓ Paragraph
+                  </button>
+                </div>
+                <div className="wpm-group">
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => setShowParagraph((s) => !s)}
+                    disabled={!hasContent}
+                  >
+                    {showParagraph ? "Hide context" : "Show paragraph"}
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    onClick={handleNewInput}
+                  >
+                    New input
+                  </button>
+                </div>
+              </div>
+              ) : null}
+
+              {showParagraph && currentParagraphInfo && (
+                <div className="reader-context">
+                  <div className="paragraph-context">
+                    <span>{currentParagraphInfo.before} </span>
+                    <strong>{currentParagraphInfo.active}</strong>
+                    <span> {currentParagraphInfo.after}</span>
+                  </div>
+                </div>
               )}
             </div>
-
-            <div className="pivot-guide" />
-
-            <div className="controls-row">
-              <div className="wpm-group">
-                <button
-                  className="btn btn-icon btn-ghost"
-                  onClick={() => handleStep(-1)}
-                  disabled={!hasContent || currentIndex === 0}
-                  type="button"
-                >
-                  ‹
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={handlePlayPause}
-                  disabled={!hasContent}
-                  type="button"
-                >
-                  {isPlaying ? "Pause" : "Play"}
-                </button>
-                <button
-                  className="btn btn-icon btn-ghost"
-                  onClick={() => handleStep(1)}
-                  disabled={!hasContent || currentIndex >= words.length - 1}
-                  type="button"
-                >
-                  ›
-                </button>
-                <button
-                  className="btn btn-ghost"
-                  onClick={handleRestart}
-                  disabled={!hasContent}
-                  type="button"
-                >
-                  Restart
-                </button>
-              </div>
-
-              <div className="wpm-group">
-                <span className="wpm-value">{wpm} wpm</span>
-                <input
-                  className="slider range-input"
-                  type="range"
-                  min={150}
-                  max={900}
-                  step={10}
-                  value={wpm}
-                  onChange={(e) => setWpm(Number(e.target.value))}
-                />
-              </div>
-            </div>
-
-            <div className="controls-row">
-              <div className="wpm-group">
-                <button
-                  className="btn btn-ghost"
-                  type="button"
-                  onClick={() => handleParagraphJump(-1)}
-                  disabled={!hasContent}
-                >
-                  ↑ Paragraph
-                </button>
-                <button
-                  className="btn btn-ghost"
-                  type="button"
-                  onClick={() => handleParagraphJump(1)}
-                  disabled={!hasContent}
-                >
-                  ↓ Paragraph
-                </button>
-              </div>
-              <div className="wpm-group">
-                <button
-                  className="btn btn-ghost"
-                  type="button"
-                  onClick={() => setShowParagraph((s) => !s)}
-                  disabled={!hasContent}
-                >
-                  {showParagraph ? "Hide context" : "Show paragraph"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="card">
-          <div className="card-header">
-            <div className="card-title">Input</div>
-          </div>
-
-          <>
-            {hasLoadedContent ? (
-              <div style={{ padding: "20px 0", textAlign: "center" }}>
-                <p className="input-hint" style={{ marginBottom: "12px" }}>
-                  Content loaded. Ready to read.
-                </p>
-                <button
-                  className="btn btn-primary"
-                  type="button"
-                  onClick={handleNewInput}
-                >
-                  New Input
-                </button>
-              </div>
-            ) : (
-              <>
-                {isLoadingUrl ? (
-                  <div style={{ padding: "12px 0", textAlign: "center" }}>
-                    <p className="input-hint">
-                      Fetching and parsing URL content... This may take a moment.
-                    </p>
-                  </div>
-                ) : null}
-                {isLoadingPdf ? (
-                  <div style={{ padding: "12px 0", textAlign: "center" }}>
-                    <p className="input-hint">
-                      Processing PDF... This may take a moment for large files.
-                    </p>
-                  </div>
-                ) : null}
-                {urlError ? (
-                  <div style={{ 
-                    padding: "12px", 
-                    marginBottom: "12px", 
-                    backgroundColor: "#fee", 
-                    border: "1px solid #fcc",
-                    borderRadius: "4px",
-                    color: "#c33"
-                  }}>
-                    {urlError}
-                  </div>
-                ) : null}
-                {pdfError ? (
-                  <div style={{ 
-                    padding: "12px", 
-                    marginBottom: "12px", 
-                    backgroundColor: "#fee", 
-                    border: "1px solid #fcc",
-                    borderRadius: "4px",
-                    color: "#c33"
-                  }}>
-                    {pdfError}
-                  </div>
-                ) : null}
-                <textarea
-                  ref={textareaRef}
-                  className="text-input"
-                  placeholder="Paste book text, chapter, or article content here… (or paste a URL by itself to auto-load)"
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  onBlur={handleRawTextBlur}
-                  onPaste={handleRawTextPaste}
-                  disabled={isLoadingPdf || isLoadingUrl}
-                />
-                <div className="input-footer">
-                  <span className="input-hint">
-                    Paste text to automatically update the reader. If you paste a URL by itself, it will be fetched and parsed automatically.
-                  </span>
-                  <label className="file-input">
-                    <span>Or open a text / PDF file… </span>
-                    <input
-                      type="file"
-                      accept=".txt,application/pdf"
-                      onChange={handleFileChange}
-                      disabled={isLoadingPdf || isLoadingUrl}
-                    />
-                  </label>
-                </div>
-              </>
-            )}
-          </>
-
-          {showParagraph && currentParagraphInfo && (
-            <div style={{ marginTop: 14 }}>
-              <div className="paragraph-context">
-                <span>{currentParagraphInfo.before} </span>
-                <strong>{currentParagraphInfo.active}</strong>
-                <span> {currentParagraphInfo.after}</span>
-              </div>
-              <div className="context-meta">
-                <span>
-                  Paragraph {currentParagraphInfo.paragraphIndex + 1} of{" "}
-                  {parsedParagraphs.length}
-                </span>
-                <span>
-                  Word {currentIndex + 1} of {words.length}
-                </span>
-              </div>
-            </div>
-          )}
-        </section>
+          </section>
+        </div>
       </main>
     </div>
   );
